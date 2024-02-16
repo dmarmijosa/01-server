@@ -1,17 +1,42 @@
-import express from 'express';
-import { SERVER_PORT } from '../global/enviroment';
+import express from "express";
+import { SERVER_PORT } from "../global/enviroment";
+import socketIO from "socket.io";
+import http from "http";
+import * as socket from "../sockets/socket";
 
+export default class Server {
+  public app: express.Application;
+  public port: number;
+  public io: socketIO.Server;
+  private httpServer: http.Server;
+  private static _instance: Server;
 
-export default class Server{
-    public app:express.Application;
-    public port:number;
+  private constructor() {
+    this.app = express();
+    this.port = SERVER_PORT;
+    this.httpServer = new http.Server(this.app);
+    this.io = new socketIO.Server(this.httpServer, {
+      cors: { origin: true, credentials: true },
+    });
+    this.listenSockets();
+  }
 
-    constructor(){
-        this.app=express();
-        this.port=SERVER_PORT;
-    }
+  public static get instance() {
+    return this._instance || (this._instance = new this());
+  }
 
-    start(callback: Function){
-        this.app.listen(this.port, callback());
-    }
+  private listenSockets() {
+    console.log("Escuchando sockets");
+    this.io.on("connection", (cliente) => {
+      console.log("Cliente contado");
+      //mensaje
+      socket.mensaje(cliente, this.io);
+      //desconectar
+      socket.desconectar(cliente);
+    });
+  }
+
+  start(callback: Function) {
+    this.httpServer.listen(this.port, callback());
+  }
 }
